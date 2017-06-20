@@ -26,6 +26,7 @@ public class PlayerMovement : MonoBehaviour {
     public float dashSpeed;
     public float dashTime;
     private float dashDoneTime;
+    private float angle;
 
     //Player variables
     public float maxSpeed;
@@ -45,6 +46,12 @@ public class PlayerMovement : MonoBehaviour {
 
     private Color spriteColor;
 
+    //Attack
+    public AttackGeneral attack;
+    private HitDetection hit;
+    private bool isInHitstun;
+
+
 
     // Use this for initialization
     void Start () {
@@ -58,28 +65,49 @@ public class PlayerMovement : MonoBehaviour {
         canMove = true;
 
         spriteColor = GetComponent<SpriteRenderer>().color;
+        hit = GetComponent<HitDetection>();
+        hit.OnStart += startHitstun;
+        hit.OnFinish += endHitstun;
+
     }
 
 	
 	// Update is called once per frame
 	void Update () {
-        moveX = Mathf.RoundToInt(Input.GetAxis(Horizontal));
-        moveY = Mathf.RoundToInt(Input.GetAxis(Vertical));
+        moveX = Input.GetAxis(Horizontal);//Mathf.RoundToInt(Input.GetAxis(Horizontal));
+        moveY = Input.GetAxis(Vertical);//Mathf.RoundToInt(Input.GetAxis(Vertical));
         dashButt = Input.GetButtonDown(Dash);
         if (Input.GetButtonDown(Jump))
         {
             jumpButton = true;
         }
 
-        if (moveX < 0 && facingRight)
+        if (isInHitstun)
         {
-            dir = "Left";
-            flip();
+            if (rb.velocity.x > 0 && facingRight)
+            {
+                dir = "Left";
+                flip();
+            }
+            else if (rb.velocity.x < 0 && !facingRight)
+            {
+                dir = "Right";
+                flip();
+            }
         }
-        else if (moveX > 0 && !facingRight)
+        else
         {
-            dir = "Right";
-            flip();
+
+            if (moveX < 0 && facingRight)
+            {
+                dir = "Left";
+                flip();
+            }
+            else if (moveX >= 0 && !facingRight)
+            {
+                dir = "Right";
+                flip();
+            }
         }
 
         //jumpHeld = Input.GetButton("Jump");
@@ -94,6 +122,14 @@ public class PlayerMovement : MonoBehaviour {
             dashDoneTime = Time.time + dashTime;
             dashCooltime = Time.time + dashTime + dashCool;
             changeColor(true);
+            if (facingRight)//Input.GetAxis(Horizontal) >= 0)
+            {
+                angle = 90 + Mathf.Atan2(-Input.GetAxis(Horizontal), Input.GetAxis(Vertical)) * Mathf.Rad2Deg;
+            }
+            else
+            {
+                angle = 90 + Mathf.Atan2(Input.GetAxis(Horizontal), -Input.GetAxis(Vertical)) * Mathf.Rad2Deg;
+            }
         }
 
         if (dashing && Time.time > dashDoneTime) {
@@ -103,8 +139,9 @@ public class PlayerMovement : MonoBehaviour {
         }
 
 		if (dashing == false && Time.time > dashCooltime) {
-			//canMove = true;
+            //canMove = true;
             //changeColor(false);
+            transform.eulerAngles = new Vector3(0, 0, 0);
         }
     }
 
@@ -116,6 +153,7 @@ public class PlayerMovement : MonoBehaviour {
         anim.SetBool("Grounded", grounded);
         if (!dashing && canMove)
         {
+            attack.deactivateHitbox();
             if (jumpButton && grounded)
             {
                 jumping = true;
@@ -135,12 +173,14 @@ public class PlayerMovement : MonoBehaviour {
             {
                 //Debug.Log("Dash pressed");
                 //anim.SetTrigger("Dashed");
-                rb.velocity = new Vector2(dashX * dashSpeed, dashY * dashSpeed);
+                transform.eulerAngles = new Vector3(0, 0, angle);
+                rb.velocity =  new Vector2(dashX * dashSpeed, dashY * dashSpeed);
+                attack.activateHitbox();
             }
-            else
-            {
-                rb.velocity = new Vector2(0f, 0f);
-            }
+            //else
+            //{
+              //  rb.velocity = new Vector2(0f, 0f);
+            //}
         }
         anim.SetFloat("Speed", Mathf.Abs(rb.velocity.x));
     }
@@ -152,6 +192,7 @@ public class PlayerMovement : MonoBehaviour {
         Vector3 temp = transform.localScale;
         temp.x *= -1;
         transform.localScale = temp;
+        attack.updateDirection();
     }
 
     //Changes the color of the character
@@ -170,6 +211,20 @@ public class PlayerMovement : MonoBehaviour {
             sprite.color = spriteColor;
         }*/
         anim.SetBool("Dashing", change);
+    }
+
+    private void startHitstun()
+    {
+        canMove = false;
+        isInHitstun = true;
+        anim.SetBool("Hitstun", true);
+    }
+
+    private void endHitstun()
+    {
+        canMove = true;
+        isInHitstun = false;
+        anim.SetBool("Hitstun", false);
     }
 
 }
