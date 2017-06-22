@@ -9,6 +9,7 @@ public class PlayerMovement : MonoBehaviour {
     public string Vertical = "Vertical_P1";
     public string Jump = "Jump_P1";
     public string Dash = "Dash_P1";
+    public string Shield = "Shield_P1";
 
     //Input values
     private float moveX;
@@ -51,6 +52,18 @@ public class PlayerMovement : MonoBehaviour {
     private HitDetection hit;
     private bool isInHitstun;
 
+    //Shielding
+    public GameObject shield;
+    private bool isShielding;
+    private float shieldingDir;
+    public float shieldSpeed;
+    public float kbModifier;
+
+    //Sprites
+    public Sprite runDashBack;
+
+    //Debuging
+    public bool permaShield = false;
 
 
     // Use this for initialization
@@ -63,6 +76,8 @@ public class PlayerMovement : MonoBehaviour {
         dashDoneTime = 0;
         dashing = false;
         canMove = true;
+        isShielding = false;
+        shield.SetActive(false);
 
         spriteColor = GetComponent<SpriteRenderer>().color;
         hit = GetComponent<HitDetection>();
@@ -77,43 +92,69 @@ public class PlayerMovement : MonoBehaviour {
         moveX = Input.GetAxis(Horizontal);//Mathf.RoundToInt(Input.GetAxis(Horizontal));
         moveY = Input.GetAxis(Vertical);//Mathf.RoundToInt(Input.GetAxis(Vertical));
         dashButt = Input.GetButtonDown(Dash);
+        isShielding = Input.GetButton(Shield) || permaShield;
         if (Input.GetButtonDown(Jump))
         {
             jumpButton = true;
         }
 
+
         if (isInHitstun)
         {
             if (rb.velocity.x > 0 && facingRight)
             {
-                dir = "Left";
+                dir = "Right";
                 flip();
             }
             else if (rb.velocity.x < 0 && !facingRight)
             {
-                dir = "Right";
+                dir = "Left";
                 flip();
             }
         }
         else
         {
+            if (!isShielding)
+            {
 
-            if (moveX < 0 && facingRight)
-            {
-                dir = "Left";
-                flip();
+                if (moveX < 0 && facingRight)
+                {
+                    dir = "Left";
+                    flip();
+                }
+                else if (moveX >= 0 && !facingRight)
+                {
+                    dir = "Right";
+                    flip();
+                }
             }
-            else if (moveX >= 0 && !facingRight)
+            else
             {
-                dir = "Right";
-                flip();
+                if (moveX < 0 && shieldingDir > 0 || moveX > 0 && shieldingDir < 0)
+                {
+                    anim.SetBool("WalkingBack", true);
+                }
+                else 
+                {
+                    anim.SetBool("WalkingBack", false);
+                }
+
             }
         }
 
         //jumpHeld = Input.GetButton("Jump");
-
+        if (isShielding)
+        {
+            shield.SetActive(true);
+            shieldingDir = transform.localScale.x;            
+        }
+        else
+        {
+            shield.SetActive(false);
+            anim.SetBool("WalkingBack", false);            
+        }
         //Dashing
-        if (dashButt && !dashing)
+        if (dashButt && !dashing && !isShielding)
         {
             dashing = true;
             canMove = false;
@@ -164,7 +205,14 @@ public class PlayerMovement : MonoBehaviour {
             }
             else
             {
-                rb.velocity = new Vector2(moveX * maxSpeed, rb.velocity.y);
+                if (!isShielding)
+                {
+                    rb.velocity = new Vector2(moveX * maxSpeed, rb.velocity.y);
+                }
+                else
+                {
+                    rb.velocity = new Vector2(moveX * shieldSpeed, rb.velocity.y);
+                }
             }
         }
         else
@@ -182,17 +230,24 @@ public class PlayerMovement : MonoBehaviour {
               //  rb.velocity = new Vector2(0f, 0f);
             //}
         }
+
         anim.SetFloat("Speed", Mathf.Abs(rb.velocity.x));
+        
+       
     }
 
     //Flips the character
     private void flip()
     {
-        facingRight = !facingRight;
-        Vector3 temp = transform.localScale;
-        temp.x *= -1;
-        transform.localScale = temp;
-        attack.updateDirection();
+        if (!isShielding)
+        {
+            facingRight = !facingRight;
+            Vector3 temp = transform.localScale;
+            temp.x *= -1;
+            transform.localScale = temp;
+            attack.updateDirection();
+        }    
+        
     }
 
     //Changes the color of the character

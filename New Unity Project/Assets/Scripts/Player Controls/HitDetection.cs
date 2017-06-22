@@ -13,12 +13,21 @@ public class HitDetection : MonoBehaviour {
     // Event that notifies when hitstun is done
     public delegate void startHitstunAction();
     public event startHitstunAction OnStart;
-    //Player collider
+    //Player RigidBody
     private Rigidbody2D rb;
+    //Shield Collider
+    public BoxCollider2D shield;
     //Attack data
     private Vector2 knockBack;
     //Got hit by a move before
     private bool wasHit;
+    //KB modifier
+    private float kbModifier = 1;
+    public float KBModifier
+    {
+        get { return kbModifier;}
+        set { kbModifier = value; }
+    }
 
     // Use this for initialization
     void Awake () {
@@ -36,6 +45,14 @@ public class HitDetection : MonoBehaviour {
         {
             Debug.Log(this.tag);
             AttackGeneral attack = col.GetComponent<AttackGeneral>();
+            if (shield.IsTouching(col))
+            {
+                kbModifier = 0.6f;
+            }
+            else
+            {
+                kbModifier = 1f;
+            }
             getAttackData(attack);
             if (!wasHit)
             {
@@ -54,7 +71,7 @@ public class HitDetection : MonoBehaviour {
 
     private void getAttackData(AttackGeneral attack)
     {
-        knockBack = attack.giveKnockBack();
+        knockBack = attack.giveKnockBack() * kbModifier;
         wasHit = attack.getAlreadyHit(this.tag);
     }
 

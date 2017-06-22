@@ -18,6 +18,7 @@ public abstract class AttackGeneral : MonoBehaviour {
     public abstract void activateHitbox();
     public abstract void deactivateHitbox();
     public abstract float giveDuration();
+    public abstract bool giveHitShield();
     public abstract void updateDirection();
     public abstract bool getAlreadyHit(string id);
 

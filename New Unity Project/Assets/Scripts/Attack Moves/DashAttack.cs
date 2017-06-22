@@ -8,14 +8,22 @@ public class DashAttack : AttackGeneral {
     public float forceX;
     public float forceY;
     public float duration;
+    public bool hitShield;
+    private Vector2 force;
     private BoxCollider2D col;
     private ArrayList hits;
+    
     // Use this for initialization
     void Awake () {
         col = GetComponent<BoxCollider2D>();
         col.enabled = false;
         hits = new ArrayList();
 	}
+
+    void Start()
+    {
+        //force = new Vector2(forceX * 100, forceY * 100);
+    }
 	
 	// Update is called once per frame
 	void Update () {
@@ -24,12 +32,18 @@ public class DashAttack : AttackGeneral {
 
     public override Vector2 giveKnockBack()
     {
-        return new Vector2(forceX*100, forceY*100);
+        return (new Vector2(forceX*100, forceY*100));
+    }
+
+    public override bool giveHitShield()
+    {
+        return hitShield;
     }
 
     public override void activateHitbox()
     {
         col.enabled = true;
+        hitShield = false;
     }
 
     public override void deactivateHitbox()
