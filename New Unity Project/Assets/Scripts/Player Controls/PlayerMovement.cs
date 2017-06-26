@@ -1,15 +1,21 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour {
+    public float tempgrav;
 
+    //Control
+    private Controller control;
+    public int controlNum;
     //Input variables
     public string Horizontal = "Horizontal_P1";
     public string Vertical = "Vertical_P1";
     public string Jump = "Jump_P1";
     public string Dash = "Dash_P1";
     public string Shield = "Shield_P1";
+    
 
     //Input values
     private float moveX;
@@ -28,6 +34,9 @@ public class PlayerMovement : MonoBehaviour {
     public float dashTime;
     private float dashDoneTime;
     private float angle;
+    private bool outOfDashCoolDown;
+    private bool groundDashRefresh;
+    private bool canDash;
 
     //Player variables
     public float maxSpeed;
@@ -38,6 +47,7 @@ public class PlayerMovement : MonoBehaviour {
     private bool jumping;
     private bool jumpHeld;
     private Rigidbody2D rb;
+    public BoxCollider2D feet;
     private SpriteRenderer sprite;
     Animator anim;
     bool grounded = false;
@@ -65,10 +75,19 @@ public class PlayerMovement : MonoBehaviour {
     //Debuging
     public bool permaShield = false;
 
+    //Spawn
+    public float respawnTime = 1;
+    public BoxCollider2D col;
+    public float invulTime = 1;
+    public Transform[] spawnpoints;
+
+
 
     // Use this for initialization
     void Start () {
+        control = ControllerManager.Instance.GetGamepad(controlNum);
         rb = GetComponent<Rigidbody2D>();
+        col = GetComponent<BoxCollider2D>();
         facingRight = true;
         dir = "Right";
         sprite = GetComponent<SpriteRenderer>();
@@ -79,25 +98,40 @@ public class PlayerMovement : MonoBehaviour {
         isShielding = false;
         shield.SetActive(false);
 
-        spriteColor = GetComponent<SpriteRenderer>().color;
+        spriteColor = sprite.color;
         hit = GetComponent<HitDetection>();
         hit.OnStart += startHitstun;
         hit.OnFinish += endHitstun;
-
+        hit.OnKilled += spawnReciever;
     }
 
-	
-	// Update is called once per frame
-	void Update () {
-        moveX = Input.GetAxis(Horizontal);//Mathf.RoundToInt(Input.GetAxis(Horizontal));
-        moveY = Input.GetAxis(Vertical);//Mathf.RoundToInt(Input.GetAxis(Vertical));
-        dashButt = Input.GetButtonDown(Dash);
-        isShielding = Input.GetButton(Shield) || permaShield;
-        if (Input.GetButtonDown(Jump))
+
+    // Update is called once per frame
+    void Update() {
+
+        if (!control.IsConnected)
+        {
+            moveX = Input.GetAxis(Horizontal);//Mathf.RoundToInt(Input.GetAxis(Horizontal));
+            moveY = Input.GetAxis(Vertical);//Mathf.RoundToInt(Input.GetAxis(Vertical));
+            dashButt = Input.GetButtonDown(Dash);
+            isShielding = Input.GetButton(Shield) || permaShield;
+            if (Input.GetButtonDown(Jump))
+            {
+                jumpButton = true;
+            }
+
+        }
+        else
+        {
+            moveX = control.GetStick_L().X;//Input.GetAxis(Horizontal);//Mathf.RoundToInt(Input.GetAxis(Horizontal));
+            moveY = control.GetStick_L().Y;//Mathf.RoundToInt(Input.GetAxis(Vertical));
+            dashButt = control.GetButton("X");
+            isShielding = control.GetButton("RB") || permaShield;
+        }
+        if (control.GetButtonDown("A"))
         {
             jumpButton = true;
         }
-
 
         if (isInHitstun)
         {
@@ -154,10 +188,13 @@ public class PlayerMovement : MonoBehaviour {
             anim.SetBool("WalkingBack", false);            
         }
         //Dashing
-        if (dashButt && !dashing && !isShielding)
+        if (dashButt && canDash && !dashing && !isShielding)
         {
             dashing = true;
             canMove = false;
+            canDash = false;
+            outOfDashCoolDown = false;
+            groundDashRefresh = false;
             dashX = moveX;
             dashY = moveY;
             dashDoneTime = Time.time + dashTime;
@@ -175,6 +212,7 @@ public class PlayerMovement : MonoBehaviour {
 
         if (dashing && Time.time > dashDoneTime) {
 			dashing = false;
+            transform.eulerAngles = new Vector3(0, 0, 0);
             canMove = true;
             changeColor(false);
         }
@@ -182,8 +220,9 @@ public class PlayerMovement : MonoBehaviour {
 		if (dashing == false && Time.time > dashCooltime) {
             //canMove = true;
             //changeColor(false);
-            transform.eulerAngles = new Vector3(0, 0, 0);
+            outOfDashCoolDown = true;
         }
+        canDash = outOfDashCoolDown && groundDashRefresh;
     }
 
     void FixedUpdate()
@@ -191,6 +230,10 @@ public class PlayerMovement : MonoBehaviour {
         //Get Input
 
         grounded = Physics2D.OverlapCircle(groundCheck.position, groundRadius, whatIsGround);
+        if (grounded)
+        {
+            groundDashRefresh = true;
+        }
         anim.SetBool("Grounded", grounded);
         if (!dashing && canMove)
         {
@@ -239,7 +282,7 @@ public class PlayerMovement : MonoBehaviour {
     //Flips the character
     private void flip()
     {
-        if (!isShielding)
+        if (!isShielding && !dashing)
         {
             facingRight = !facingRight;
             Vector3 temp = transform.localScale;
@@ -282,4 +325,29 @@ public class PlayerMovement : MonoBehaviour {
         anim.SetBool("Hitstun", false);
     }
 
+    private void spawnReciever()
+    {
+        //Start couroutine
+        StartCoroutine("controlRespawn");
+    }
+
+    private IEnumerator controlRespawn()
+    {
+        int pos = UnityEngine.Random.Range(0, spawnpoints.Length);
+        rb.velocity = Vector2.zero;
+        this.transform.position = spawnpoints[pos].position;
+        //Stop the player
+        canMove = false;
+        tempgrav = rb.gravityScale;
+        rb.gravityScale = 0;
+        col.enabled = false;
+        sprite.color = Color.yellow;
+        yield return new WaitForSeconds(respawnTime);
+        rb.gravityScale = tempgrav;
+        canMove = true;
+        yield return new WaitForSeconds(invulTime);
+        sprite.color = spriteColor;
+        col.enabled = true;
+
+    }
 }

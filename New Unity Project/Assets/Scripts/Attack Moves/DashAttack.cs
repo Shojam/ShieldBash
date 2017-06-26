@@ -73,4 +73,12 @@ public class DashAttack : AttackGeneral {
             return false;
         }
     }
+
+    void OnTriggerEnter2D(Collider2D col)
+    {
+        if (col.tag.Contains("Shield") && !col.gameObject.CompareTag(this.tag))
+        {
+            ControllerManager.Instance.GetGamepad(1).AddRumble(0.5f, new Vector2(50, 50), 10f);
+        }
+    }
 }

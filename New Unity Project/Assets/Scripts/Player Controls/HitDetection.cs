@@ -13,6 +13,9 @@ public class HitDetection : MonoBehaviour {
     // Event that notifies when hitstun is done
     public delegate void startHitstunAction();
     public event startHitstunAction OnStart;
+    // Event that notifies when a player has hit the blastzone
+    public delegate void startRespawnAction();
+    public event startRespawnAction OnKilled;
     //Player RigidBody
     private Rigidbody2D rb;
     //Shield Collider
@@ -43,7 +46,7 @@ public class HitDetection : MonoBehaviour {
     {
         if (col.tag.Contains("Attack") && !col.gameObject.CompareTag(this.tag))
         {
-            Debug.Log(this.tag);
+            //Debug.Log(this.tag);
             AttackGeneral attack = col.GetComponent<AttackGeneral>();
             if (shield.IsTouching(col))
             {
@@ -59,6 +62,12 @@ public class HitDetection : MonoBehaviour {
                 setKnockBack();
                 startHitstun();
             }
+        }
+
+        else if (col.tag.Contains("Hazard"))
+        {
+            Debug.Log("Hello?");
+            OnKilled();
         }
     }
 
